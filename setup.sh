@@ -27,9 +27,20 @@ BREW_PREFIX="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
 eval "$($BREW_PREFIX/bin/brew shellenv 2>/dev/null || true)"
 
 # ─── 1. 安装依赖 ───────────────────────────────────────────
-log "安装依赖 (tmux, ttyd)..."
+log "安装依赖 (tmux, ttyd, tailscale)..."
 brew install tmux 2>/dev/null || warn "tmux 已安装或安装失败，继续..."
 brew install ttyd 2>/dev/null || warn "ttyd 已安装或安装失败，继续..."
+brew install tailscale 2>/dev/null || warn "tailscale 已安装或安装失败，继续..."
+# Tailscale 一次配置，永久有效（跨子网时无需记 IP）
+if command -v tailscale &>/dev/null; then
+    if ! tailscale status &>/dev/null 2>&1; then
+        warn "Tailscale 未登录，请手动运行: tailscale up"
+        warn "（登录后即可通过固定 IP 从任何网络连回 Mac mini）"
+    else
+        TS_IP=$(tailscale ip -4 2>/dev/null || echo "")
+        [ -n "$TS_IP" ] && log "Tailscale 已就绪: $TS_IP"
+    fi
+fi
 
 # ─── 2. 配置 SSH ───────────────────────────────────────────
 log "配置 SSH 远程登录..."
@@ -80,6 +91,11 @@ _get_ip() {
     echo "无法获取 IP，请手动指定"
 }
 
+_get_tailscale_ip() {
+    command -v tailscale &>/dev/null || { echo ""; return; }
+    tailscale ip -4 2>/dev/null || echo ""
+}
+
 cmd_start() {
     mkdir -p "$HOME/.mac-share"
 
@@ -116,6 +132,7 @@ cmd_start() {
     fi
 
     IP=$(_get_ip)
+    TS_IP=$(_get_tailscale_ip)
     echo ""
     echo "═══════════════════════════════════════════════"
     echo "  Mac mini 共享终端已就绪"
@@ -130,14 +147,28 @@ cmd_start() {
         echo "     (无需密码，直接打开即用)"
     fi
     echo ""
-    echo "  💻 MacBook (SSH):"
+    echo "  💻 局域网 SSH:"
     echo "     ssh $(whoami)@$IP"
     echo "     然后: tmux attach -t $TMUX_SESSION"
+    if [ -n "$TS_IP" ]; then
+        echo ""
+        echo "  🔗 Tailscale (跨子网/外网 SSH):"
+        echo "     ssh $(whoami)@$TS_IP"
+        echo "     然后: tmux attach -t $TMUX_SESSION"
+        echo ""
+        echo "     🌐 Tailscale Web (浏览器):"
+        echo "        http://$TS_IP:$TTYD_PORT"
+    fi
     echo ""
     echo "  🪟 Windows 同学 (推荐浏览器):"
-    echo "     http://$IP:$TTYD_PORT"
-    echo "  🪟 Windows 同学 (也可 SSH):"
-    echo "     ssh $(whoami)@$IP  →  tmux attach -t $TMUX_SESSION"
+    echo "     http://${TS_IP:-$IP}:$TTYD_PORT"
+    if [ -n "$TS_IP" ]; then
+        echo "  🪟 Windows 同学 (Tailscale SSH):"
+        echo "     ssh $(whoami)@$TS_IP  →  tmux attach -t $TMUX_SESSION"
+    else
+        echo "  🪟 Windows 同学 (也可 SSH):"
+        echo "     ssh $(whoami)@$IP  →  tmux attach -t $TMUX_SESSION"
+    fi
     echo "═══════════════════════════════════════════════"
 }
 
@@ -155,6 +186,8 @@ cmd_status() {
     echo "──────────── mac-share 状态 ────────────"
     echo "Hostname: $(hostname)"
     echo "IP:       $(_get_ip)"
+    TS_IP=$(_get_tailscale_ip)
+    [ -n "$TS_IP" ] && echo "Tailscale: $TS_IP"
     echo ""
     if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
         echo "tmux:     ✅ 运行中 (session: $TMUX_SESSION)"
@@ -175,19 +208,26 @@ cmd_status() {
 
 cmd_connect() {
     IP=$(_get_ip)
+    TS_IP=$(_get_tailscale_ip)
     echo ""
     echo "═ MacBook 连接 ══════════════════════════"
     echo "  ssh $(whoami)@$IP"
     echo "  tmux attach -t $TMUX_SESSION"
+    if [ -n "$TS_IP" ]; then
+        echo ""
+        echo "═ Tailscale (跨子网/外网) ═════════════"
+        echo "  ssh $(whoami)@$TS_IP"
+        echo "  tmux attach -t $TMUX_SESSION"
+    fi
     echo ""
     echo "═ Windows 同学连接 ═════════════════════"
     echo "  推荐 (浏览器):"
-    echo "    http://$IP:$TTYD_PORT"
+    echo "    http://${TS_IP:-$IP}:$TTYD_PORT"
     if [ -n "$TTYD_USER" ]; then
         echo "    用户名: $TTYD_USER  密码: $TTYD_PASS"
     fi
     echo "  也可 SSH:"
-    echo "    ssh $(whoami)@$IP  →  tmux attach -t $TMUX_SESSION"
+    echo "    ssh $(whoami)@${TS_IP:-$IP}  →  tmux attach -t $TMUX_SESSION"
     echo ""
     echo "═ tmux 快捷键 ═══════════════════════════"
     echo "  Ctrl+B D    断开但保持 session 运行"
@@ -207,14 +247,25 @@ case "${1:-}" in
     status)   cmd_status ;;
     connect)  cmd_connect ;;
     attach)   cmd_attach ;;
+    tailscale)
+        TS_IP=$(_get_tailscale_ip)
+        if [ -n "$TS_IP" ]; then
+            echo "Tailscale: $TS_IP"
+        else
+            echo "Tailscale 未安装或未登录"
+            echo "安装: brew install tailscale"
+            echo "登录: tailscale up"
+        fi
+        ;;
     *)
-        echo "用法: mac-share {start|stop|status|connect|attach}"
+        echo "用法: mac-share {start|stop|status|connect|attach|tailscale}"
         echo ""
-        echo "  start   启动共享 (tmux + ttyd)"
-        echo "  stop    停止共享"
-        echo "  status  查看状态"
-        echo "  connect 显示连接指令"
-        echo "  attach  直接 attach 到 tmux session"
+        echo "  start      启动共享 (tmux + ttyd)"
+        echo "  stop       停止共享"
+        echo "  status     查看状态"
+        echo "  connect    显示连接指令"
+        echo "  attach     直接 attach 到 tmux session"
+        echo "  tailscale  显示 Tailscale 跨子网 IP"
         exit 1
         ;;
 esac
@@ -241,6 +292,10 @@ echo ""
 echo "════════════════════════════════════════════════════════"
 echo "  安装完成！"
 echo "════════════════════════════════════════════════════════"
+echo ""
+echo "  🔗 跨子网访问 (推荐):"
+echo "     tailscale up                # 登录 Tailscale 获取固定 IP"
+echo "     mac-share connect           # 查看 Tailscale IP"
 echo ""
 echo "  1. 启动共享终端:"
 echo "     mac-share start"
