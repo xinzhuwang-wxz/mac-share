@@ -2,25 +2,25 @@
 
 ## 一句话
 
-在 Mac mini 上跑一个脚本，**你（MacBook）和同学（Windows）就能同时用它的终端**——浏览器或 SSH 都行。
+在 Mac mini 上跑一个脚本，**多人就能同时用它的终端**——浏览器或 SSH 都行。
 
 ## 怎么做到的
 
 ```
-┌─────────────┐    浏览器      ┌─────────────────────────────┐
-│ Windows 同学 │──────────────→│                             │
-└─────────────┘               │   Mac mini                   │
-                    SSH       │   ┌─────┐  ┌──────────────┐  │
-┌─────────────┐               │   │tmux │←─│    ttyd      │  │
-│ 你的 MacBook │──────────────→│   │共享  │  │  (Web终端)   │  │
-└─────────────┘    SSH/浏览器  │   │session│  │  端口 7681  │  │
-                              │   └─────┘  └──────────────┘  │
-                              └─────────────────────────────┘
+┌──────────┐    浏览器      ┌─────────────────────────────┐
+│ Windows  │──────────────→│                             │
+└──────────┘               │   Mac mini                   │
+                  SSH       │   ┌─────┐  ┌──────────────┐  │
+┌──────────┐               │   │tmux │←─│    ttyd      │  │
+│ MacBook  │──────────────→│   │共享  │  │  (Web终端)   │  │
+└──────────┘    SSH/浏览器  │   │session│  │  端口 7681  │  │
+                            │   └─────┘  └──────────────┘  │
+                            └─────────────────────────────┘
 ```
 
-- **tmux**：终端"房间"，两人进去看到同一个屏幕，都能敲键盘
-- **ttyd**：把 tmux 变成网页，浏览器打开就能用（主要给 Windows 同学省事）
-- **SSH**：你 MacBook 原生的连接方式，更快更稳
+- **tmux**：终端"房间"，多人进去看到同一个屏幕，都能敲键盘
+- **ttyd**：把 tmux 变成网页，浏览器打开就能用
+- **SSH**：原生终端连接，更快更稳
 
 ## 安装（在 Mac mini 上）
 
@@ -46,21 +46,21 @@ bash setup.sh
 
 ```bash
 mac-share start      # 启动共享终端
-mac-share connect    # 查看连接方式（发给同学）
+mac-share connect    # 查看连接方式（发给其他人）
 mac-share status     # 看谁在线
 mac-share stop       # 停止
 mac-share attach     # 本地直接进入 tmux
 mac-share tailscale  # 查看 Tailscale 跨子网 IP
 ```
 
-### 你的 MacBook
+### MacBook / Linux
 
 ```bash
 ssh <用户名>@<Mac-mini-IP>
 tmux attach -t mac-share
 ```
 
-### 同学的 Windows
+### Windows
 
 **推荐（浏览器最省事）：**
 打开 `http://<Mac-mini-IP>:7681`，直接就能用（默认无需密码）
@@ -71,9 +71,11 @@ ssh <用户名>@<Mac-mini-IP>
 ```
 登录后在 Mac mini 上执行 `tmux attach -t mac-share`
 
-## 🔗 跨子网访问（不在同一 WiFi）
+## 🔗 跨子网访问
 
-如果 MacBook 和 Mac mini 不在同一网段（比如一个在实验室一个在宿舍），IP 不通，用 **Tailscale** 搞定：
+> ⚠️ **即使连的同一个 WiFi，也可能因为 VLAN 隔离导致 IP 不通。** 校园网/公司网经常这样——WiFi 名一样，实际设备被分到不同子网，互相 Ping 不通。
+
+直接用 **Tailscale** 在上面打一条隧道，绕过底下的网络隔离：
 
 ### 1. 登录 Tailscale（已经装好了，只需登录）
 
@@ -135,7 +137,7 @@ export TTYD_PASS=mypass
 
 ## ⚠️ 部署前必查
 
-**防火墙：** Mac mini 的防火墙默认可能拦截 7681 端口，导致同学的浏览器连不上。部署后在 Mac mini 上：
+**防火墙：** Mac mini 的防火墙默认可能拦截 7681 端口。部署后在 Mac mini 上：
 
 ```bash
 # 检查防火墙状态
@@ -152,20 +154,20 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp /opt/homebrew/
 
 ## 常见问题
 
-**Q: 同学的浏览器连不上？**
-A: ① 确认两台电脑连的同一个 WiFi/路由器 ② 检查 Mac mini 防火墙（见上方）③ Ping 一下 IP 看通不通。
+**Q: 浏览器连不上？**
+A: ① Ping 一下 IP 看通不通 ② 即使同一 WiFi 也可能 VLAN 隔离，直接用 Tailscale（见上方「跨子网访问」）③ 检查 Mac mini 防火墙（见上方）。
 
 **Q: SSH 连不上？**
-A: 检查「系统设置 → 通用 → 共享 → 远程登录」是否开启。
+A: 检查「系统设置 → 通用 → 共享 → 远程登录」是否开启。如果同一 WiFi 但 IP 段不同，是 VLAN 隔离，用 Tailscale。
 
-**Q: Windows 同学用 SSH 后 `tmux: command not found`？**
+**Q: Windows 用 SSH 后 `tmux: command not found`？**
 A: `tmux` 跑在 Mac mini 上，不是 Windows 上。SSH 登录 Mac mini 后执行 `tmux attach -t mac-share` 即可。如果提示找不到 tmux，说明 Mac mini 没装——重跑 `setup.sh`。
 
 **Q: 想让两人各自独立终端（不同时看一个屏幕）？**
 A: 各自 `tmux new-session -s mysession` 就行，不加 `-t mac-share`。
 
-**Q: 不在同一局域网？**
-A: 上面 👆「跨子网访问」章节就是干这个的。Mac mini 已预装 Tailscale，跑 `tailscale up` 登录，其他设备也装上，就用 Tailscale IP 连。
+**Q: 不在同一局域网 / 同一 WiFi 但连不上？**
+A: 这是 VLAN 隔离，上面 👆「跨子网访问」章节就是干这个的。两边装上 Tailscale 就能通。
 
 ## 许可
 
