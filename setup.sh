@@ -12,8 +12,9 @@ err()  { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 
 TMUX_SESSION="mac-share"
 TTYD_PORT="${TTYD_PORT:-7681}"
-TTYD_USER="${TTYD_USER:-admin}"
-TTYD_PASS="${TTYD_PASS:-macshare}"
+# 留空 = 无需密码。局域网内推荐留空；公网建议设置
+TTYD_USER="${TTYD_USER:-}"
+TTYD_PASS="${TTYD_PASS:-}"
 
 # ─── 0. 探测环境 ───────────────────────────────────────────
 log "检测系统环境..."
@@ -63,8 +64,9 @@ cat > "$SCRIPT_DIR/mac-share" << 'SCRIPTEOF'
 set -euo pipefail
 TMUX_SESSION="mac-share"
 TTYD_PORT="${TTYD_PORT:-7681}"
-TTYD_USER="${TTYD_USER:-admin}"
-TTYD_PASS="${TTYD_PASS:-macshare}"
+# 留空 = 无需密码。局域网内推荐留空；公网建议设置
+TTYD_USER="${TTYD_USER:-}"
+TTYD_PASS="${TTYD_PASS:-}"
 FIFO="$HOME/.mac-share/ttyd.fifo"
 PID_FILE="$HOME/.mac-share/ttyd.pid"
 CONF="$HOME/.tmux.macshare.conf"
@@ -97,8 +99,9 @@ cmd_start() {
         mkfifo "$FIFO"
         echo "启动 ttyd 在端口 $TTYD_PORT ..."
         nohup ttyd -p "$TTYD_PORT" \
-            -c "$TTYD_USER:$TTYD_PASS" \
-            -t titleFixed="mac-share" \
+            -W \
+            ${TTYD_USER:+ -c "$TTYD_USER:$TTYD_PASS"} \
+            -t "titleFixed=mac-share" \
             tmux -f "$CONF" attach -t "$TMUX_SESSION" \
             > "$HOME/.mac-share/ttyd.log" 2>&1 &
         echo $! > "$PID_FILE"
