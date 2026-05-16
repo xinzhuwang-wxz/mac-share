@@ -32,14 +32,20 @@ mac-share start
 
 ---
 
-### MacBook / 其他 Mac（客户端）
+### 客户端
+
+> **你自己**的各设备 — 装 Tailscale 登录**同一个账号**即可。
+> **分享给其他人** — 各自用自己账号，在 Mac mini 的 [Tailscale 控制台](https://login.tailscale.com/admin/machines) 把节点 Share 给他们就行，不用共享账号。
 
 ```bash
-brew install tailscale
-tailscale up        # 跟 Mac mini 用**同一账号**登录
+# Mac
+brew install tailscale && tailscale up
+
+# Windows
+# https://tailscale.com/download
 ```
 
-连 Mac mini：
+登录后在客户端连接：
 
 ```bash
 ssh jonah@<Tailscale IP>       # 终端
@@ -47,14 +53,6 @@ http://<Tailscale IP>:7681     # 浏览器
 ```
 
 > Mac mini 上跑 `mac-share connect` 能看到 IP。同一 WiFi 下用局域网 IP 也行，不走 Tailscale。
-
----
-
-### Windows（客户端）
-
-1. [下载安装 Tailscale](https://tailscale.com/download)
-2. 登录同一账号
-3. 同样用 `ssh` 或浏览器连
 
 ---
 
