@@ -50,18 +50,16 @@ TAILSCALED="/opt/homebrew/bin/tailscaled"
 PLIST="/Library/LaunchDaemons/com.tailscale.tailscaled.plist"
 
 setup_tailscale_daemon() {
-    # 若旧 Daemon 在跑但 plist 不是我们的 → 清理
-    if [ -f "$PLIST" ] && ! grep -q "com.tailscale.tailscaled" "$PLIST" 2>/dev/null; then
-        true  # go ahead to overwrite
-    fi
-    if pgrep -x tailscaled &>/dev/null; then
-        info "停止旧 tailscaled 进程..."
-        sudo pkill -9 tailscaled 2>/dev/null || true
-        sudo launchctl bootout system "$PLIST" 2>/dev/null || true
-        sleep 1
-    fi
+    # 彻底清旧进程和旧 Daemon（不管什么方式跑的）
+    info "清理旧 Tailscale 进程..."
+    for domain in system "gui/$(id -u)"; do
+        sudo launchctl bootout "$domain/com.tailscale.tailscaled" 2>/dev/null || true
+    done
+    brew services stop tailscale 2>/dev/null || true
+    sudo pkill -9 tailscaled 2>/dev/null || true
+    sleep 1
 
-    # 写入系统 LaunchDaemon（root 级，不受用户登录态影响）
+    # 写入系统 LaunchDaemon，显式指定 socket 路径
     info "安装 Tailscale 系统服务..."
     sudo tee "$PLIST" > /dev/null << PLISTEOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -74,6 +72,7 @@ setup_tailscale_daemon() {
     <key>ProgramArguments</key>
     <array>
         <string>$TAILSCALED</string>
+        <string>--socket=/var/run/tailscaled.socket</string>
         <string>--statedir=/var/lib/tailscale</string>
     </array>
     <key>RunAtLoad</key>
@@ -89,14 +88,15 @@ setup_tailscale_daemon() {
 PLISTEOF
 
     sudo mkdir -p /var/lib/tailscale
-    sudo launchctl bootstrap system "$PLIST" 2>/dev/null || \
     sudo launchctl load -w "$PLIST"
 
-    sleep 2
+    sleep 3
     if pgrep -x tailscaled &>/dev/null; then
         ok "Tailscale 服务已启动（系统级）"
     else
-        warn "Tailscale 服务启动失败，检查: sudo cat /var/log/tailscaled.err"
+        warn "Tailscale 启动失败，查看日志:"
+        echo "  sudo cat /var/log/tailscaled.err"
+        echo "  sudo tail -20 /var/log/tailscaled.log"
     fi
 }
 
