@@ -12,7 +12,7 @@
 curl -fsSL https://raw.githubusercontent.com/xinzhuwang-wxz/mac-share/main/setup.sh | bash
 ```
 
-装完自动完成：tmux / ttyd / Tailscale / SSH / `mac-share` 命令。
+装完自动完成：tmux / ttyd / Tailscale / SSH / 禁休眠 / `mac-share` 命令。
 
 然后：
 
