@@ -38,11 +38,11 @@ mac-share start
 > **分享给其他人** — 各自用自己账号，在 Mac mini 的 [Tailscale 控制台](https://login.tailscale.com/admin/machines) 把节点 Share 给他们就行，不用共享账号。
 
 ```bash
-# Mac
+# MacBook / 其他 Mac
 brew install tailscale && tailscale up
 
 # Windows
-# https://tailscale.com/download
+https://tailscale.com/download
 ```
 
 登录后在客户端连接：
