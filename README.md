@@ -1,62 +1,79 @@
 # mac-share
 
-一键将 Mac mini 变成可共享终端 —— 支持局域网和跨子网（Tailscale）。
+一键将 Mac mini 变成共享终端 —— 局域网直接用，跨子网走 Tailscale。
 
-## 安装
+---
 
-在 Mac mini 上：
+## 各设备操作
+
+### Mac mini（服务端）
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xinzhuwang-wxz/mac-share/main/setup.sh | bash
 ```
 
-## 使用
+装完自动完成：
+- tmux、ttyd、Tailscale 安装
+- Tailscale 以系统 LaunchDaemon 运行（不依赖用户登录）
+- SSH 远程登录开启
+- `mac-share` 命令安装
+
+然后登录 Tailscale：
 
 ```bash
-mac-share start        # 启动共享终端
-mac-share connect      # 查看连接信息
-mac-share tailscale    # 查看 Tailscale IP
-mac-share stop         # 停止服务
-mac-share status       # 查看状态
+tailscale up    # 弹浏览器，登录一次
 ```
 
-## 客户端连接
-
-三步走：
-
-### 1. 客户端装 Tailscale（一次性）
+启动服务：
 
 ```bash
-# Mac / Linux
+mac-share start
+```
+
+---
+
+### MacBook / 其他 Mac（客户端）
+
+```bash
 brew install tailscale
-
-# Windows
-# https://tailscale.com/download
+tailscale up        # 跟 Mac mini 用**同一账号**登录
 ```
 
-### 2. 登录（同一账号）
+连 Mac mini：
 
 ```bash
-tailscale up    # 弹出浏览器，用跟 Mac mini 同一个账号登录
+ssh jonah@<Tailscale IP>       # 终端
+http://<Tailscale IP>:7681     # 浏览器
 ```
 
-### 3. 连接
+> Mac mini 上跑 `mac-share connect` 能看到 IP。同一 WiFi 下用局域网 IP 也行，不走 Tailscale。
 
-在 **Mac mini** 上运行 `mac-share connect`，拿到地址后在**客户端**连接：
+---
+
+### Windows（客户端）
+
+1. [下载安装 Tailscale](https://tailscale.com/download)
+2. 登录同一账号
+3. 同样用 `ssh` 或浏览器连
+
+---
+
+## mac-share 命令
 
 ```bash
-ssh jonah@100.x.x.x       # 终端连接（换成 Mac mini 用户名和 IP）
-http://100.x.x.x:7681     # 浏览器终端
+mac-share start        # 启动
+mac-share stop         # 停止
+mac-share status       # 状态
+mac-share connect      # 查看连接地址
+mac-share tailscale    # Tailscale IP
 ```
-
-> **同一 WiFi** 下也能直接用局域网 IP，不走 Tailscale。
 
 ## 原理
 
 | 组件 | 作用 |
 |------|------|
-| `tmux` | 所有用户共享同一个终端会话 |
-| `ttyd` | Web 终端（任何设备浏览器可访问） |
-| `Tailscale` | 跨子网打通，解决校园网/公司网 VLAN 隔离 |
+| tmux | 多用户共享同一终端会话 |
+| ttyd | 浏览器终端 |
+| Tailscale | 跨子网打通 |
 
-Tailscale 以系统 LaunchDaemon 运行，不依赖用户 GUI 会话，headless Mac mini 也能稳定工作。
+Tailscale 以系统 LaunchDaemon 运行，headless Mac mini 也能稳定工作，不依赖 GUI 会话。
