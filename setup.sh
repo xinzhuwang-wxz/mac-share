@@ -116,8 +116,6 @@ echo "── 禁止休眠 ──────────────────
 sudo pmset -a sleep 0 && ok "已禁止系统休眠"
 sudo pmset -a displaysleep 0 && ok "已禁止显示器休眠"
 sudo pmset -a disksleep 0 && ok "已禁止硬盘休眠"
-sudo pmset -a standby 0 && ok "已禁止深度休眠"
-sudo pmset -a autopoweroff 0 && ok "已禁止自动关机"
 
 # ─── SSH 远程登录 ─────────────────────────────────────────
 echo ""
