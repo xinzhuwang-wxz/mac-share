@@ -22,22 +22,34 @@ mac-share status       # 查看状态
 
 ## 客户端连接
 
-**其他设备**需要先安装 Tailscale 并登录同一账号：
+三步走：
+
+### 1. 客户端装 Tailscale（一次性）
 
 ```bash
 # Mac / Linux
-brew install tailscale && tailscale up
+brew install tailscale
 
 # Windows
 # https://tailscale.com/download
 ```
 
-Tailscale 登录后，用 `mac-share connect` 显示的地址连接：
+### 2. 登录（同一账号）
 
 ```bash
-ssh yourname@100.x.x.x    # 终端连接
+tailscale up    # 弹出浏览器，用跟 Mac mini 同一个账号登录
+```
+
+### 3. 连接
+
+在 **Mac mini** 上运行 `mac-share connect`，拿到地址后在**客户端**连接：
+
+```bash
+ssh jonah@100.x.x.x       # 终端连接（换成 Mac mini 用户名和 IP）
 http://100.x.x.x:7681     # 浏览器终端
 ```
+
+> **同一 WiFi** 下也能直接用局域网 IP，不走 Tailscale。
 
 ## 原理
 
